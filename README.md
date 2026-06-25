@@ -2,6 +2,8 @@
 
 Hey, welcome to the course, and thanks for learning Go. I hope this course provides a great learning experience.
 
+_This course is updated for Go 1.26.4._
+
 _This course is also available on my [website](https://karanpratapsingh.com/courses/go) and as an ebook on [leanpub](https://leanpub.com/go). Please leave a ⭐ as motivation if this was helpful!_
 
 # Table of contents
@@ -53,6 +55,8 @@ _This course is also available on my [website](https://karanpratapsingh.com/cour
 
 - **Appendix**
 
+  - [Structured Logging with slog](#structured-logging-with-slog)
+  - [Toolchain, Runtime, and Platforms](#toolchain-runtime-and-platforms)
   - [Next Steps](#next-steps)
   - [References](#references)
 
@@ -92,7 +96,7 @@ I hope this made you excited about Go. Let's start this course.
 
 # Installation and Setup
 
-In this tutorial, we will install Go and setup our code editor.
+In this tutorial, we will install Go 1.26.4 and setup our code editor.
 
 ## Download
 
@@ -116,7 +120,11 @@ _These instructions are from the [official website](https://go.dev/doc/install).
 $ go version
 ```
 
-3. Confirm that the command prints the installed version of Go.
+3. Confirm that the command prints the installed version of Go, for example:
+
+```
+go version go1.26.4 darwin/arm64
+```
 
 ### Linux
 
@@ -124,7 +132,7 @@ $ go version
    then extract the archive you just downloaded into `/usr/local`, creating a fresh Go tree in `/usr/local/go`:
 
 ```
-$ rm -rf /usr/local/go && tar -C /usr/local -xzf go1.18.1.linux-amd64.tar.gz
+$ rm -rf /usr/local/go && tar -C /usr/local -xzf go1.26.4.linux-amd64.tar.gz
 ```
 
 _Note: You may need to run the command as root or through sudo._
@@ -146,7 +154,11 @@ _Note: Changes made to a profile file may not apply until the next time you log 
 $ go version
 ```
 
-4. Confirm that the command prints the installed version of Go.
+4. Confirm that the command prints the installed version of Go, for example:
+
+```
+go version go1.26.4 linux/amd64
+```
 
 ### Windows
 
@@ -164,7 +176,11 @@ You can change the location as needed. After installing, you will need to close 
 $ go version
 ```
 
-3. Confirm that the command prints the installed version of Go.
+3. Confirm that the command prints the installed version of Go, for example:
+
+```
+go version go1.26.4 windows/amd64
+```
 
 ## VS Code
 
@@ -538,6 +554,34 @@ func main() {
 
 As we can see, we cannot use the defined type interchangeably with the underlying type, unlike _alias types_.
 
+## min, max, and clear (Go 1.21)
+
+Go 1.21 added three built-in functions that work on ordered types and collections:
+
+- **`min`** and **`max`** return the smaller or larger of the given values.
+- **`clear`** resets a slice, map, or type parameter to its zero value (for maps, it removes all entries).
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(min(3, 7, 1)) // 1
+	fmt.Println(max(3, 7, 1)) // 7
+
+	s := []int{1, 2, 3}
+	clear(s)
+	fmt.Println(s) // [0 0 0]
+
+	m := map[string]int{"a": 1, "b": 2}
+	clear(m)
+	fmt.Println(len(m)) // 0
+}
+```
+
+These are handy for everyday code and reduce the need for small helper functions.
+
 # String Formatting
 
 In this tutorial, we will learn about string formatting or sometimes also known as templating.
@@ -861,6 +905,62 @@ func main() {
 }
 ```
 
+### Range over integers
+
+Since Go 1.22, you can also iterate over a range of integers directly:
+
+```go
+func main() {
+	for i := range 10 {
+		fmt.Println(i) // prints 0 through 9
+	}
+}
+```
+
+This is a concise alternative to the classic `for i := 0; i < 10; i++` pattern.
+
+### Per-iteration loop variables (Go 1.22)
+
+Go 1.22 changed how `for` loop variables work: each iteration now creates a **new** variable instead of reusing the same one. This fixes a common bug when launching goroutines inside a loop:
+
+```go
+var funcs []func()
+for i := range 3 {
+	funcs = append(funcs, func() { fmt.Println(i) })
+}
+for _, f := range funcs {
+	f() // prints 0, 1, 2 (not 3, 3, 3)
+}
+```
+
+Before Go 1.22, all closures captured the same `i`, which was usually not what you wanted.
+
+### Range over iterators (Go 1.23)
+
+Go 1.23 extended `range` to work with **iterator functions** — functions that yield values one at a time. This is the pattern behind packages like `maps` and `slices` in modern Go:
+
+```go
+import "iter"
+
+func countUp() iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := 1; i <= 3; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+}
+
+func main() {
+	for n := range countUp() {
+		fmt.Println(n) // 1, 2, 3
+	}
+}
+```
+
+An iterator calls `yield(value)` for each item. If `yield` returns `false`, iteration stops early.
+
 # Functions
 
 In this tutorial, we will discuss how we work with functions in Go. So, let's start with a simple function declaration.
@@ -1154,6 +1254,8 @@ Like earlier, let's create a new module using `go mod init` command which create
 $ go mod init example
 ```
 
+With Go 1.26.4, `go mod init` defaults to a lower `go` version in new `go.mod` files for broader compatibility. The file will specify `go 1.25`. You can change this later with `go get go@version`.
+
 The important thing to note here is that a Go module can correspond to a Github repository as well if you plan to publish this module. For example:
 
 ```bash
@@ -1282,7 +1384,7 @@ Here we can refer to it using the `module` we had initialized in our `go.mod` fi
 ---go.mod---
 module example
 
-go 1.18
+go 1.25
 
 ---main.go--
 package main
@@ -1414,7 +1516,7 @@ This will create a `go.work` file.
 
 ```bash
 $ cat go.work
-go 1.18
+go 1.25
 ```
 
 We will also add our `hello` module to the workspace.
@@ -1426,7 +1528,7 @@ $ go work use ./hello
 This should update the `go.work` file with a reference to our `hello` module.
 
 ```go
-go 1.18
+go 1.25
 
 use ./hello
 ```
@@ -1454,7 +1556,7 @@ Finally, let's add `example` package to our workspace.
 ```bash
 $ go work use ./example
 $ cat go.work
-go 1.18
+go 1.25
 
 use (
 	./example
@@ -1509,7 +1611,7 @@ $ go help
 
 As we can see, we have:
 
-`go fix` finds Go programs that use old APIs and rewrites them to use newer ones.
+`go fix` has been revamped in Go 1.26 and is now the home of Go's modernizers. It provides a push-button way to update code bases to the latest idioms and core library APIs, using the same analysis framework as `go vet`.
 
 `go generate` is usually used for code generation.
 
@@ -1596,6 +1698,20 @@ Here's an example of how to use it:
 ```bash
 $ CGO_ENABLED=0 go build -o app
 ```
+
+## Profile-Guided Optimization (PGO)
+
+Go 1.20 added preview support for **Profile-Guided Optimization (PGO)**. The compiler can use a CPU profile from a real workload to optimize hot paths, often improving performance by a few percent with no code changes.
+
+```bash
+# Collect a profile while running your app
+$ go test -cpuprofile=default.pgo ./...
+
+# Build with PGO enabled
+$ go build -pgo=default.pgo -o app
+```
+
+PGO is production-ready in Go 1.26.4. You typically only need it once an app is mature enough to profile meaningfully.
 
 # Pointers
 
@@ -1757,6 +1873,26 @@ $ go run main.go
 value 100
 address 0xc000018030
 ```
+
+Starting with Go 1.26, the built-in `new` function also accepts an expression as its operand, which sets the initial value of the variable. This is especially useful when working with optional fields in structs, such as with JSON serialization.
+
+```go
+import "encoding/json"
+
+type Person struct {
+	Name string `json:"name"`
+	Age  *int   `json:"age"` // nil if unknown
+}
+
+func personJSON(name string, age int) ([]byte, error) {
+	return json.Marshal(Person{
+		Name: name,
+		Age:  new(age),
+	})
+}
+```
+
+Here, `new(age)` allocates an `*int` and initializes it to the value of `age` in a single expression.
 
 ## Pointer to a Pointer
 
@@ -2876,6 +3012,38 @@ func add(values ...int) int {
 }
 ```
 
+## The slices package (Go 1.21)
+
+The standard library [`slices`](https://pkg.go.dev/slices) package provides common operations on slices. Prefer it over hand-written loops when it fits:
+
+```go
+import "slices"
+
+func main() {
+	s := []int{3, 1, 4, 1, 5}
+
+	slices.Sort(s)                        // [1 1 3 4 5]
+	fmt.Println(slices.Contains(s, 4))    // true
+	fmt.Println(slices.Index(s, 1))       // 0
+
+	// Compact removes consecutive duplicates (slice must be sorted first)
+	s = slices.Compact(s)                 // [1 3 4 5]
+}
+```
+
+## Slice to array conversion (Go 1.20)
+
+Go 1.20 added a direct conversion from a slice to an array when the slice has enough elements:
+
+```go
+s := []byte("hi!")
+arr := [2]byte(s) // equivalent to copying s[0] and s[1] into a fixed array
+
+fmt.Println(arr) // [104 105]
+```
+
+The conversion panics if the slice is shorter than the array length.
+
 # Maps
 
 So, Go provides a built-in map type, and we'll learn how to use it.
@@ -3163,6 +3331,35 @@ func main() {
 	fmt.Println(m2) // Output: map[a:{Peter} b:{Seth} c:{Steve}]
 }
 ```
+
+## The maps package (Go 1.21)
+
+The standard library [`maps`](https://pkg.go.dev/maps) package provides helpers for maps:
+
+```go
+import "maps"
+
+func main() {
+	src := map[string]int{"a": 1, "b": 2}
+
+	clone := maps.Clone(src) // shallow copy
+	dst := make(map[string]int)
+	maps.Copy(dst, src)      // copy all entries into dst
+
+	fmt.Println(clone) // map[a:1 b:2]
+	fmt.Println(dst)   // map[a:1 b:2]
+}
+```
+
+With Go 1.23+, `maps.Keys` and `maps.Values` return iterators you can use directly in a `for range` loop:
+
+```go
+for k := range maps.Keys(src) {
+	fmt.Println(k)
+}
+```
+
+Use the built-in **`clear`** function (Go 1.21) to remove all entries from a map without allocating a new one.
 
 # Interfaces
 
@@ -3817,6 +4014,14 @@ code 2000: cannot divide by zero
 
 The difference is that this function checks whether the error has a specific type, unlike the [`Is`](https://pkg.go.dev/errors#Is) function, which examines if it is a particular error object.
 
+Starting with Go 1.26, [`errors.AsType`](https://pkg.go.dev/errors#AsType) provides a type-safe generic alternative to `errors.As`:
+
+```go
+if divErr, ok := errors.AsType[DivisionError](err); ok {
+	fmt.Println(divErr)
+}
+```
+
 We can also use type assertions but it's not preferred.
 
 ```go
@@ -3831,6 +4036,27 @@ func main() {
 	fmt.Println(result)
 }
 ```
+
+### Combining errors with errors.Join (Go 1.20)
+
+When a function performs multiple operations that can fail, [`errors.Join`](https://pkg.go.dev/errors#Join) combines them into a single error value:
+
+```go
+func loadConfig() error {
+	var errs []error
+
+	if err := readFile("app.toml"); err != nil {
+		errs = append(errs, err)
+	}
+	if err := readFile("secrets.toml"); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+```
+
+`errors.Is` and `errors.As` (and `errors.AsType` in Go 1.26) work on joined errors, so callers can still inspect individual failures.
 
 Lastly, I will say that error handling in Go is quite different compared to the traditional `try/catch` idiom in other languages. But it is very powerful as it encourages the developer to actually handle the error in an explicit way, which improves readability as well.
 
@@ -4168,9 +4394,27 @@ $ go tool cover -html=coverage.out
 
 As we can see, this is a much more readable format. And best of all, it is built right into standard tooling.
 
+## Benchmarks with B.Loop
+
+Go 1.24 introduced `B.Loop` as the preferred way to write benchmarks. With Go 1.26, benchmarks written using `B.Loop` behave more predictably because the loop body is no longer prevented from being inlined.
+
+```go
+func BenchmarkAdd(b *testing.B) {
+	for b.Loop() {
+		math.Add(1, 2)
+	}
+}
+```
+
+Run benchmarks with:
+
+```bash
+$ go test -bench=. ./math
+```
+
 ## Fuzz testing
 
-Lastly, let's look at fuzz testing which was introduced in Go version 1.18.
+Lastly, let's look at fuzz testing, which was introduced in Go 1.18 and is fully supported in Go 1.26.4.
 
 Fuzzing is a type of automated testing that continuously manipulates inputs to a program to find bugs.
 
@@ -4226,11 +4470,11 @@ fuzz: elapsed: 0s, execs: 1 (25/sec), new interesting: 0 (total: 0)
         testing.go:1349: panic: B is greater than A
 ```
 
-I think this is a really cool feature of Go 1.18. You can learn more about fuzz testing from the [official Go blog](https://go.dev/doc/fuzz).
+I think this is a really cool feature. You can learn more about fuzz testing from the [official Go documentation](https://go.dev/doc/fuzz).
 
 # Generics
 
-In this section, we will learn about Generics which is a much awaited feature that was released with Go version 1.18.
+In this section, we will learn about Generics, a feature that was released with Go 1.18 and has continued to evolve through Go 1.26.
 
 ## What are Generics?
 
@@ -4278,18 +4522,18 @@ Here, `T` is our type parameter and `constraint` will be the interface that allo
 
 I know, I know, this is confusing. So, let's start building our generic `sum` function.
 
-Here, we will use `T` as our type parameter with an empty `interface{}` as our constraint.
+Here, we will use `T` as our type parameter. We can constrain it with `any`, the preferred alias for the empty interface (available since Go 1.18):
 
 ```go
-func sum[T interface{}](a, b T) T {
+func sum[T any](a, b T) T {
 	fmt.Println(a, b)
 }
 ```
 
-Also, starting with Go 1.18 we can use `any`, which is pretty much equivalent to the empty interface.
+This is equivalent to using the empty `interface{}` as a constraint:
 
 ```go
-func sum[T any](a, b T) T {
+func sum[T interface{}](a, b T) T {
 	fmt.Println(a, b)
 }
 ```
@@ -4302,7 +4546,7 @@ sum[float64](4.0, 2.0)
 sum[string]("a", "b")
 ```
 
-Luckily, Go 1.18 comes with **type inference** which helps us to write code that calls generic functions without explicit types.
+Luckily, Go supports **type inference** for generic functions, which helps us write code without explicit type arguments.
 
 ```go
 sum(1, 2)
@@ -4373,49 +4617,17 @@ $ go run main.go
 ab
 ```
 
-We can also use the `constraints` package which defines a set of useful constraints to be used with type parameters.
+The `~` token in type constraints means the set of all types whose underlying type is the named type. For example, `~string` matches any type with underlying type `string`.
 
-```go
-type Signed interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64
-}
-
-type Unsigned interface {
-	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
-}
-
-type Integer interface {
-	Signed | Unsigned
-}
-
-type Float interface {
-	~float32 | ~float64
-}
-
-type Complex interface {
-	~complex64 | ~complex128
-}
-
-type Ordered interface {
-	Integer | Float | ~string
-}
-```
-
-For that, we will need to install the `constraints` package.
-
-```bash
-$ go get golang.org/x/exp/constraints
-go: added golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd
-```
+We can also use the standard library [`cmp`](https://pkg.go.dev/cmp) package, which defines useful constraints for type parameters (available since Go 1.21):
 
 ```go
 import (
+	"cmp"
 	"fmt"
-
-	"golang.org/x/exp/constraints"
 )
 
-func sum[T constraints.Ordered](a, b T) T {
+func sum[T cmp.Ordered](a, b T) T {
 	return a + b
 }
 
@@ -4426,15 +4638,7 @@ func main() {
 }
 ```
 
-Here we are using the `Ordered` constraint.
-
-```go
-type Ordered interface {
-	Integer | Float | ~string
-}
-```
-
-`~` is a new token added to Go and the expression `~string` means the set of all types whose underlying type is `string`.
+Here we are using the `cmp.Ordered` constraint, which covers all ordered types such as integers, floats, and strings.
 
 And it still works as expected.
 
@@ -4446,6 +4650,40 @@ ab
 ```
 
 Generics is an amazing feature because it permits writing abstract functions that can drastically reduce code duplication in certain cases.
+
+## Self-referential constraints (Go 1.26)
+
+Go 1.26 lifted the restriction that a generic type cannot refer to itself in its type parameter list. It is now possible to specify type constraints that refer to the generic type being constrained:
+
+```go
+type Adder[A Adder[A]] interface {
+	Add(A) A
+}
+
+func algo[A Adder[A]](x, y A) A {
+	return x.Add(y)
+}
+```
+
+Previously, the self-reference to `Adder` on the first line was not allowed. This makes type constraints more powerful for modeling recursive type relationships.
+
+## Generic type aliases (Go 1.24)
+
+Go 1.24 added support for **generic type aliases** — a type alias can have its own type parameters, just like a defined type:
+
+```go
+type MapAlias[K, V any] = map[K]V
+
+func keys[K comparable, V any](m MapAlias[K, V]) []K {
+	out := make([]K, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+```
+
+This is useful when you want a shorter or domain-specific name for a generic type without creating a wholly new defined type.
 
 ## When to use generics
 
@@ -5632,6 +5870,40 @@ $ go run main.go
 Result: 1000
 ```
 
+### Typed atomics (Go 1.19)
+
+Go 1.19 introduced typed wrappers in `sync/atomic` that are easier and safer to use than the older pointer-based API:
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+func add(wg *sync.WaitGroup, n *atomic.Int32) {
+	defer wg.Done()
+	n.Add(1)
+}
+
+func main() {
+	var n atomic.Int32
+
+	var wg sync.WaitGroup
+	wg.Add(1000)
+	for range 1000 {
+		go add(&wg, &n)
+	}
+	wg.Wait()
+
+	fmt.Println("Result:", n.Load()) // 1000
+}
+```
+
+`atomic.Int64`, `atomic.Uint64`, `atomic.Bool`, and `atomic.Pointer[T]` follow the same pattern — methods like `Load`, `Store`, and `Add` hide the raw memory details.
+
 # Advanced Concurrency Patterns
 
 In this tutorial, we will discuss some advanced concurrency patterns in Go. Often, these patterns are used in combination in the real world.
@@ -6353,6 +6625,106 @@ I'm sure you can already see how this can be immensely useful.
 
 For example, we can use this to cancel any resource-intensive work if it's no longer needed or has exceeded the deadline or a timeout.
 
+# Structured Logging with slog
+
+Go 1.21 added the [`log/slog`](https://pkg.go.dev/log/slog) package for **structured logging** — log lines as key-value records instead of free-form strings. This makes logs easier to search and parse in production.
+
+## Why slog?
+
+`fmt.Println` and the classic `log` package are fine for learning and small scripts. For services, structured logging helps you filter by level, request ID, or user ID without fragile string parsing.
+
+## Basic usage
+
+```go
+package main
+
+import (
+	"log/slog"
+	"os"
+)
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	logger.Info("user signed in",
+		"user_id", 42,
+		"method", "oauth",
+	)
+}
+```
+
+Output (one JSON object per line):
+
+```json
+{"time":"...","level":"INFO","msg":"user signed in","user_id":42,"method":"oauth"}
+```
+
+## Log levels
+
+`slog` supports levels such as `Debug`, `Info`, `Warn`, and `Error`:
+
+```go
+logger.Debug("cache miss", "key", "session:abc")
+logger.Warn("retrying request", "attempt", 3)
+logger.Error("database unavailable", "err", err)
+```
+
+## Default logger
+
+You can also use the package-level default:
+
+```go
+slog.SetDefault(logger)
+slog.Info("server started", "port", 8080)
+```
+
+`slog` is in the standard library, so you do not need a third-party package for structured logging. Libraries like `zerolog` (used earlier in this course) remain popular when you want a different API or extra features.
+
+# Toolchain, Runtime, and Platforms
+
+This section covers Go 1.21–1.26 changes that affect **how you build and run** programs rather than day-to-day language syntax. You do not need these on day one, but they matter in production.
+
+## Green Tea garbage collector (Go 1.26)
+
+Go 1.26 enables the **Green Tea** garbage collector by default (it was experimental in Go 1.25). It improves marking and scanning of small objects, with typical GC overhead reductions of roughly 10–40% in allocation-heavy programs.
+
+You normally get this automatically. To disable it while debugging a GC-related issue:
+
+```bash
+$ GOEXPERIMENT=nogreenteagc go build -o app
+```
+
+This opt-out is expected to be removed in Go 1.27.
+
+## FIPS 140-3 cryptography (Go 1.24+)
+
+Go ships a **FIPS 140-3** cryptographic module for regulated environments (government, finance, healthcare). Enable it at build time:
+
+```bash
+$ GOFIPS140=v1.0.0 go build -o app
+```
+
+When enabled, approved algorithms in `crypto/...` packages follow FIPS requirements. Go 1.26 also adds `crypto/hpke` for hybrid public-key encryption, including post-quantum hybrid KEMs. Most beginners and general-purpose apps do not need FIPS mode unless compliance requires it.
+
+## Supported platforms (Go 1.26.4)
+
+Go runs on many OS/architecture pairs. Check what your toolchain supports:
+
+```bash
+$ go tool dist list
+```
+
+Notable platform changes in recent releases:
+
+| Release | Change |
+|---------|--------|
+| **Go 1.22** | `GOOS=windows GOARCH=386` (32-bit Windows) last supported release |
+| **Go 1.24** | Requires Linux kernel 3.2+; last release for macOS 11 Big Sur |
+| **Go 1.25** | Removed broken `windows/arm` (32-bit ARM Windows) port |
+| **Go 1.26** | Last release for macOS 12 Monterey; `linux/riscv64` race detector; `windows/arm64` cgo internal linking |
+
+When cross-compiling (as in the [Build](#build) section), use `GOOS` and `GOARCH` to target a specific platform. Always verify against [go.dev/doc/install/source](https://go.dev/doc/install/source) and the release notes for your exact Go version.
+
 # Next Steps
 
 Congratulations, you've finished the course!
@@ -6375,6 +6747,9 @@ Here are the resources that were referenced while creating this course.
 
 - [The Go Programming Language](https://www.gopl.io)
 - [Official Go documentation](https://go.dev/doc)
+- [Go 1.26 Release Notes](https://go.dev/doc/go1.26)
+- [log/slog package documentation](https://pkg.go.dev/log/slog)
+- [Profile-guided optimization](https://go.dev/doc/pgo)
 - [Official Go blog](https://go.dev/blog)
 - [A Tour of Go](https://go.dev/tour)
 - [Learn Go with Tests](https://quii.gitbook.io/learn-go-with-tests)
